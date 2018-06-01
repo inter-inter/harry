@@ -15,7 +15,7 @@ class HarryExt:
 		self.CuedSlideNum = None
 		self.CurrSlideNum = None
 		self.PrevSlideNum = None
-		self.PrevOSC = None
+		self.PrevOSC = {'A': None, 'B': None, 'C': None, 'D': None, 'E': None}
 		self.English = 0
 
 		self.RefreshStacks()
@@ -138,26 +138,56 @@ class HarryExt:
 			op('output/text').par.font = self.master.par.Foreignfont
 		return
 
-	def ReceiveOSC(self, array):
-		print(array)
-		bus = array[0]
-		media = array[1]
-		pos = array[2]
+	def ReceiveOSC(self, bus, msg):
+		print(bus, msg)
+
+		media = msg[0]
+		pos = msg[1]
+		prev = self.PrevOSC
+		print(prev)
+		margin = self.master.par.Trackingmargin
+
+		if prev is None or prev[0] != media or abs(prev[1]-pos) > margin:
+			self.PrevOSC[bus] = msg
+			return
+
 		if self.CurrStackName is None: return
+
 		stack = self.CurrStack
-		selected = None
-		for i in range(0, len(stack)):
-			slide = stack[i]
-			if slide[0] == bus and int(slide[1]) == media:
-				if pos >= float(slide[2]):
-					selected = i
-				else:
-					break
-			else:
-				continue
-		if selected is not None:
-			self.CueSlide(selected)
-			self.LoadSlide()
+		select = [s for s in stack if s[0]==bus and s[1]==media and s[2]>prev[1] and s[2]<=pos]
+		print(bus, media, prev[1], pos, select)
+
+		if select != []:
+			slide = select[0]
+			if slide != self.CurrSlideNum:
+				self.CueSlide(slide)
+				self.LoadSlide()
+
+		self.PrevOSC[bus] = msg
+
+		# bus = array[0]
+		# media = array[1]
+		# pos = array[2]
+		
+
+		# stack = self.CurrStack
+		# selected = None
+
+
+		# for i in range(0, len(stack)):
+		# 	slide = stack[i]
+		# 	if slide[0] == bus and int(slide[1]) == media:
+		# 		target = float(slide[2])
+		# 		margin = 0.1
+		# 		if pos >= target-margin and pos <= target+margin
+		# 			selected = i
+		# 			break
+		# 	else:
+		# 		continue
+		# if selected is not None and selected != self.CurrSlideNum:
+		# 	self.CueSlide(selected)
+		# 	self.LoadSlide()
+		# self.PrevOSC = array
 
 		return
 
