@@ -1,0 +1,71 @@
+SURTITLE SPEC
+
+
+SLIDE CUE STACKS -- CSV files
+
+Surtitle slides will be stored in a cue stack, which is an ordered CSV file. There will be an arbitrary number of these cue stacks, signifying different parts of the show.
+
+They will all live in a single show folder, each named "n-type.csv" where n is part number and type is either "manual" for manually advanced cue stacks or "automatic" for cue stacks that are linked to media and position.
+
+Each row has the following fields (first three will be ignored for manually advanced cue stacks)
+    - BUS
+    - MEDIA #
+    - POSITION
+    - ENGLISH text
+    - FOREIGN text
+
+The first row of each file will be dummy header text for the poor souls entering all the data.
+
+
+
+HARRY -- TouchDesigner patch
+
+The TouchDesigner patch, named Harry, will have the following data / behaviors:
+
+DATA
+1. PART LIST - all of the parts of the show in a list of part numbers and part types (manual or automatic)
+2. PART CUE POINTER - the cued-up part number of the show
+3. CURRENT PART - the part number we are currently in, default None
+4. SLIDE LIST - all of the slides from the most recently loaded part of the show, in a list of bus, media, position, english and foreign, default empty list.
+5. SLIDE CUE POINTER - the cued-up slide index (and None if this part is automatically cued), default None
+6. CURRENT SLIDE - the slide index we are currently looking at, default None
+7. PREVIOUS OSC MESSAGE
+8. PREVIOUS SLIDE - default None
+
+BEHAVIORS
+1. REFRESH PART LIST
+    - load PART LIST - numbers and types from the csv files in the show folder
+    - reload the CURRENT PART if not None
+    - reload the CURRENT SLIDE if not None
+2. CUE PART (part number)
+    - set PART CUE POINTER to a specified part number
+3. LOAD PART
+    - load the cued-up part data from its csv file into the SLIDE LIST
+    - set CURRENT PART to loaded part number
+    - increment PART CUE POINTER (wrapping back to 1 after the highest part number)
+    - reset the SLIDE CUE POINTER to 0
+4. CUE SLIDE (slide number / None)
+    - set SLIDE CUE POINTER to specified slide number / None
+    - set on-deck cue display appropriately
+5. LOAD SLIDE
+    - visually display slide pointed to by SLIDE CUE POINTER
+    - set PREVIOUS SLIDE to CURRENT SLIDE
+    - set CURRENT SLIDE to loaded slide number
+    - CUE SLIDE to SLIDE CUE POINTER + 1, or if we're on the last cue in this part CUE SLIDE to None
+
+USER INTERFACE
+- Startup - the patch will REFRESH PART LIST and CUE PART 1.
+- Button "Refresh" - calls REFRESH PART LIST.
+- Button "GO" - if SLIDE CUE POINTER is None, LOAD PART, otherwise LOAD SLIDE
+- Button "UNDO" - if PREVIOUS SLIDE not none, CUE and LOAD it
+- Part list display - click on a part to CUE PART and LOAD PART.
+- Slide list display - click on a slide to CUE SLIDE and LOAD SLIDE.
+- Current slide display - shows a small view of the currently loaded slide
+- On-deck cue display - if SLIDE CUE POINTER is None, shows a small view that displays the PART CUE POINTER, otherwise shows a small view of the slide that is cued-up
+
+OSC TRACKING
+Harry will receive an OSC stream from Hoover, consisting of bus, media, and position values. Each time a new message is received, Harry will:
+- If CURRENT PART is None or CURRENT PART type is manual, do nothing
+- Otherwise, loop through SLIDE LIST
+    - if a given slide matches one of the bus / media pairs from the OSC message, and its position either matches the OSC position or is in between the OSC position and the PREVIOUS OSC MESSAGE position (and both OSC position and PREVIOUS OSC MESSAGE position are close to the slide position by some margin of error, say 0.1 -- to be refined through testing), CUE and LOAD that slide
+- Store OSC message in PREVIOUS OSC MESSAGE
